@@ -1,0 +1,64 @@
+- name: Add jessie repo
+  copy:
+    content: |
+      deb http://httpredir.debian.org/debian jessie main contrib non-free
+      deb-src http://httpredir.debian.org/debian jessie main contrib non-free
+    dest: /etc/apt/sources.list.d/jessie.list
+
+- name: Add docker repo
+  copy:
+    content: |
+      deb https://apt.dockerproject.org/repo debian-jessie main
+    dest: /etc/apt/sources.list.d/docker.list
+
+- name: Add key
+  apt_key: keyserver=keyserver.ubuntu.com id=58118E89F3A912897C070ADBF76221572C52609D
+
+- name: install docker packages
+  apt:
+    name: docker-engine
+    state: present
+    update_cache: yes
+
+- name: add docker to vrf context
+  lineinfile:
+    path: /etc/vrf/systemd.conf
+    state: present
+    line: "docker"
+
+- name: create docker systemd create folder
+  file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+- name: docker systemd config
+  copy:
+    dest: /etc/systemd/system/docker.service.d/noiptables-mgmt-vrf.conf
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=/usr/bin/docker daemon --iptables=false --ip-masq=false --ip-forward=false
+
+- name: Systemd docker.socket
+  systemd:
+    daemon_reload: yes
+    name: docker.socket
+    state: stopped
+    enabled: no
+
+- name: Systemd docker.service
+  systemd:
+    daemon_reload: yes
+    name: docker.service
+    state: stopped
+    enabled: no
+
+- name: Systemd docker@mgmt
+  systemd:
+    daemon_reload: yes
+    name: docker@mgmt
+    state: started
+    enabled: yes
